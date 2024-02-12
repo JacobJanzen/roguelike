@@ -121,12 +121,17 @@ int main(void)
     int           num_open_tiles;
     create_cave(&map, &open_tiles, &num_open_tiles);
 
+    int xpos = rand() % num_open_tiles;
+    int ypos = rand() % num_open_tiles;
+    startx = xpos = MAIN_PANEL_WIDTH / 2 + 1;
+    starty = ypos = MAIN_PANEL_HEIGHT / 2 + 1;
+
     display_map(main_win, map, starty, startx);
 
     int ch;
     while ((ch = getch()) != KEY_F(1)) {
-        int xpos = startx + MAIN_PANEL_WIDTH / 2 - 1;
-        int ypos = starty + MAIN_PANEL_HEIGHT / 2 - 1;
+        xpos = startx + MAIN_PANEL_WIDTH / 2 - 1;
+        ypos = starty + MAIN_PANEL_HEIGHT / 2 - 1;
         switch (ch) {
         case 'k' :
             if (ypos > 0) {
