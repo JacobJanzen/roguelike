@@ -18,9 +18,14 @@ struct point {
     int y;
 };
 
-void create_cave(
-    enum tile_type **map, struct point **open, int *open_tiles,
-    struct point *up, struct point *down
-);
+struct map {
+    enum tile_type *map;
+    struct point    entry_point;
+
+    int width;
+    int height;
+};
+
+void create_cave(struct map *map);
 
 #endif // CAVEGEN_H_

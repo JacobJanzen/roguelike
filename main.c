@@ -8,17 +8,27 @@
 #define MAIN_PANEL_WIDTH         100
 #define MAIN_PANEL_HEIGHT        41
 #define INSTRUCTION_PANEL_WIDTH  32
-#define INSTRUCTION_PANEL_HEIGHT 43
+#define INSTRUCTION_PANEL_HEIGHT 39
 #define MESSAGE_PANEL_WIDTH      100
 #define MESSAGE_PANEL_HEIGHT     3
+#define STATUS_PANEL_WIDTH       32
+#define STATUS_PANEL_HEIGHT      5
 
 #define MAX_ENTITIES 100
 
 struct entity {
-    char *name;
-    int   xpos;
-    int   ypos;
-    char *disp_ch;
+    char        *name;
+    struct point p;
+    char        *disp_ch;
+    bool         solid;
+    bool         visible;
+};
+
+struct windows {
+    WINDOW *main;
+    WINDOW *inst;
+    WINDOW *msgs;
+    WINDOW *stat;
 };
 
 WINDOW *create_newwin(int height, int width, int starty, int startx)
@@ -39,13 +49,14 @@ void initialize(void)
     initscr(); // initialize curses
 
     // exit on unsupported consoles
-    if (LINES < INSTRUCTION_PANEL_HEIGHT ||
+    if (LINES < MAIN_PANEL_HEIGHT + MESSAGE_PANEL_HEIGHT ||
         COLS < MAIN_PANEL_WIDTH + INSTRUCTION_PANEL_WIDTH || !has_colors()) {
         endwin();
         fprintf(
             stderr,
             "a color terminal is required with at least %dx%d characters\n",
-            INSTRUCTION_PANEL_WIDTH + MAIN_PANEL_WIDTH, INSTRUCTION_PANEL_HEIGHT
+            INSTRUCTION_PANEL_WIDTH + MAIN_PANEL_WIDTH,
+            MAIN_PANEL_HEIGHT + MESSAGE_PANEL_HEIGHT
         );
         exit(1);
     }
@@ -59,45 +70,61 @@ void initialize(void)
 
     // setup colours
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
+    init_pair(2, COLOR_BLACK, COLOR_RED);
     wattron(stdscr, COLOR_PAIR(1));
     refresh();
 }
 
 void display_map(
-    WINDOW *win, enum tile_type *map, struct entity *entities, int num_entities
+    WINDOW *win, struct map *map, struct entity *entities, int num_entities
 )
 {
+    // print map
     for (int i = 1; i < MAIN_PANEL_HEIGHT - 1; ++i) {
         for (int j = 1; j < MAIN_PANEL_WIDTH - 1; ++j) {
-            int i1 = i - 1 + entities[0].ypos;
-            int j1 = j - 1 + entities[0].xpos;
-            if (i1 > HEIGHT || j1 > WIDTH || i1 < 0 || j1 < 0) {
+            int map_i = i - 1 + entities[0].p.y;
+            int map_j = j - 1 + entities[0].p.x;
+
+            if (map_i > map->height || map_j > map->width || map_i < 0 ||
+                map_j < 0) {
                 mvwaddch(win, i, j, ' ');
-            } else if (map[i1 * WIDTH + j1] == GROUND) {
-                mvwaddch(win, i, j, '.');
-            } else if (map[i1 * WIDTH + j1] == UP_STAIR) {
-                mvwaddch(win, i, j, '<');
-            } else if (map[i1 * WIDTH + j1] == DOWN_STAIR) {
-                mvwaddch(win, i, j, '>');
-            } else if (i1 > 0 && map[(i1 - 1) * WIDTH + j1] != WALL) {
-                mvwprintw(win, i, j, "█");
-            } else if (i1 < HEIGHT - 1 && map[(i1 + 1) * WIDTH + j1] != WALL) {
-                mvwprintw(win, i, j, "█");
-            } else if (j1 > 0 && map[i1 * WIDTH + j1 - 1] != WALL) {
-                mvwprintw(win, i, j, "█");
-            } else if (j1 < WIDTH - 1 && map[i1 * WIDTH + j1 + 1] != WALL) {
-                mvwprintw(win, i, j, "█");
             } else {
-                mvwaddch(win, i, j, ' ');
+                switch (map->map[map_i * map->width + map_j]) {
+                case GROUND : mvwaddch(win, i, j, '.'); break;
+                case UP_STAIR : mvwaddch(win, i, j, '<'); break;
+                case DOWN_STAIR :
+                    wattron(win, COLOR_PAIR(2));
+                    mvwaddch(win, i, j, '>');
+                    wattroff(win, COLOR_PAIR(2));
+                    break;
+                case WALL :
+                    if (map_i > 0 &&
+                        map->map[(map_i - 1) * map->width + map_j] != WALL) {
+                        mvwprintw(win, i, j, "█");
+                    } else if (map_i < map->width - 1 && map->map[(map_i + 1) * map->width + map_j] != WALL) {
+                        mvwprintw(win, i, j, "█");
+                    } else if (map_j > 0 && map->map[map_i * map->width + map_j - 1] != WALL) {
+                        mvwprintw(win, i, j, "█");
+                    } else if (map_j < map->width - 1 && map->map[map_i * map->width + map_j + 1] != WALL) {
+                        mvwprintw(win, i, j, "█");
+                    } else {
+                        mvwaddch(win, i, j, ' ');
+                    }
+                    break;
+                default : mvwaddch(win, i, j, ' ');
+                }
             }
         }
     }
 
+    // print entities
     for (int i = 1; i < num_entities; ++i) {
-        mvwprintw(
-            win, entities[i].ypos - entities[0].ypos + 1,
-            entities[i].xpos - entities[0].xpos + 1, entities[i].disp_ch
-        );
+        if (entities[i].visible) {
+            mvwprintw(
+                win, entities[i].p.y - entities[0].p.y + 1,
+                entities[i].p.x - entities[0].p.x + 1, entities[i].disp_ch
+            );
+        }
     }
     wrefresh(win);
 }
@@ -123,113 +150,148 @@ void display_message(WINDOW *win, char *msg)
     wrefresh(win);
 }
 
-int main(void)
+void display_status(WINDOW *win, struct entity *entity)
 {
-    initialize();
+    for (int i = 1; i < STATUS_PANEL_HEIGHT - 1; ++i) {
+        for (int j = 1; j < STATUS_PANEL_WIDTH - 1; ++j) {
+            mvwaddch(win, i, j, ' ');
+        }
+    }
 
-    // create the windows
-    WINDOW *inst = create_newwin(
+    mvwprintw(win, 1, 2, "HP:");
+    mvwprintw(win, 2, 2, "STAMINA:");
+    mvwprintw(win, 3, 2, "MANA:");
+
+    wrefresh(win);
+}
+
+bool entity_set_pos(struct entity *e, struct point p, struct map *map)
+{
+    if (e->solid) {
+        if (p.y < 0 || p.x < 0 || p.y >= map->height || p.x >= map->width) {
+            return false;
+        }
+        if (map->map[p.y * map->width + p.x] == WALL) {
+            return false;
+        }
+    }
+
+    e->p = p;
+
+    return true;
+}
+
+void create_windows(struct windows *wins)
+{
+    wins->inst = create_newwin(
         INSTRUCTION_PANEL_HEIGHT, INSTRUCTION_PANEL_WIDTH,
-        (LINES - INSTRUCTION_PANEL_HEIGHT) / 2,
+        (LINES - INSTRUCTION_PANEL_HEIGHT - STATUS_PANEL_HEIGHT) / 2 + 1,
         (COLS - MAIN_PANEL_WIDTH - INSTRUCTION_PANEL_WIDTH) / 2 +
             MAIN_PANEL_WIDTH - 1
     );
-    WINDOW *msgs = create_newwin(
+    wins->msgs = create_newwin(
         MESSAGE_PANEL_HEIGHT, MESSAGE_PANEL_WIDTH,
         (LINES - MAIN_PANEL_HEIGHT - MESSAGE_PANEL_HEIGHT) / 2 +
             MAIN_PANEL_HEIGHT,
         (COLS - MESSAGE_PANEL_WIDTH - INSTRUCTION_PANEL_WIDTH) / 2
     );
-    WINDOW *main_win = create_newwin(
+    wins->stat = create_newwin(
+        STATUS_PANEL_HEIGHT, STATUS_PANEL_WIDTH,
+        (LINES - INSTRUCTION_PANEL_HEIGHT - STATUS_PANEL_HEIGHT) / 2 +
+            INSTRUCTION_PANEL_HEIGHT,
+        (COLS - MAIN_PANEL_WIDTH - INSTRUCTION_PANEL_WIDTH) / 2 +
+            MAIN_PANEL_WIDTH - 1
+    );
+    wins->main = create_newwin(
         MAIN_PANEL_HEIGHT, MAIN_PANEL_WIDTH,
         (LINES - MAIN_PANEL_HEIGHT - MESSAGE_PANEL_HEIGHT) / 2 + 1,
         (COLS - MAIN_PANEL_WIDTH - INSTRUCTION_PANEL_WIDTH) / 2
     );
+}
+
+int main(void)
+{
+    initialize();
+
+    // create windows
+    struct windows windows;
+    create_windows(&windows);
 
     // create the map
-    enum tile_type *map;
-    struct point   *open_tiles;
-    int             num_open_tiles;
-    struct point    up;
-    struct point    down;
-    create_cave(&map, &open_tiles, &num_open_tiles, &up, &down);
+    struct map map;
+    create_cave(&map);
 
     // create the camera and player at the up stairs
     struct entity *entities = malloc(sizeof(struct entity) * MAX_ENTITIES);
     entities[0].disp_ch     = "";
     entities[0].name        = "camera";
-    entities[0].xpos        = up.x - MAIN_PANEL_WIDTH / 2 + 1;
-    entities[0].ypos        = up.y - MAIN_PANEL_HEIGHT / 2 + 1;
+    entities[0].p.x         = map.entry_point.x - MAIN_PANEL_WIDTH / 2 + 1;
+    entities[0].p.y         = map.entry_point.y - MAIN_PANEL_HEIGHT / 2 + 1;
+    entities[0].solid       = false;
+    entities[0].visible     = false;
     entities[1].disp_ch     = "@";
     entities[1].name        = "player";
-    entities[1].xpos        = up.x;
-    entities[1].ypos        = up.y;
+    entities[1].p           = map.entry_point;
+    entities[1].solid       = true;
+    entities[1].visible     = true;
     int num_entities        = 2;
 
     // start displaying things
-    display_map(main_win, map, entities, num_entities);
-    display_instructions(inst);
-    display_message(msgs, "TODO: put a message here");
+    display_map(windows.main, &map, entities, num_entities);
+    display_instructions(windows.inst);
+    display_status(windows.stat, &entities[1]);
+    display_message(windows.msgs, "");
 
     int  ch;
     bool done = false;
     while (!done && (ch = getch()) != KEY_F(1)) {
+        struct point newp     = entities[1].p;
+        struct point newp_cam = entities[0].p;
         switch (ch) {
         case 'k' :
-            if (entities[1].ypos > 0) {
-                if (map[(entities[1].ypos - 1) * WIDTH + entities[1].xpos]) {
-                    --entities[0].ypos;
-                    --entities[1].ypos;
-                }
-            }
+            --newp.y;
+            --newp_cam.y;
             break;
         case 'j' :
-            if (entities[1].ypos < HEIGHT - 1) {
-                if (map[(entities[1].ypos + 1) * WIDTH + entities[1].xpos]) {
-                    ++entities[0].ypos;
-                    ++entities[1].ypos;
-                }
-            }
+            ++newp.y;
+            ++newp_cam.y;
             break;
         case 'h' :
-            if (entities[1].xpos > 0) {
-                if (map[entities[1].ypos * WIDTH + entities[1].xpos - 1]) {
-                    --entities[0].xpos;
-                    --entities[1].xpos;
-                }
-            }
+            --newp.x;
+            --newp_cam.x;
             break;
         case 'l' :
-            if (entities[1].xpos < WIDTH - 1) {
-                if (map[entities[1].ypos * WIDTH + entities[1].xpos + 1]) {
-                    ++entities[0].xpos;
-                    ++entities[1].xpos;
-                }
-            }
+            ++newp.x;
+            ++newp_cam.x;
             break;
         case '>' :
-            if (map[entities[1].ypos * WIDTH + entities[1].xpos] ==
+            if (map.map[entities[1].p.y * map.width + entities[1].p.x] ==
                 DOWN_STAIR) {
-                free(map);
-                free(open_tiles);
-                create_cave(&map, &open_tiles, &num_open_tiles, &up, &down);
-                entities[0].xpos = up.x - MAIN_PANEL_WIDTH / 2 + 1;
-                entities[0].ypos = up.y - MAIN_PANEL_HEIGHT / 2 + 1;
-                entities[1].xpos = up.x;
-                entities[1].ypos = up.y;
+                free(map.map);
+                create_cave(&map);
+
+                newp       = map.entry_point;
+                newp_cam.x = map.entry_point.x - MAIN_PANEL_WIDTH / 2 + 1;
+                newp_cam.y = map.entry_point.y - MAIN_PANEL_HEIGHT / 2 + 1;
+
+                display_message(windows.msgs, "Entered new level");
             }
             break;
         case '<' :
-            if (map[entities[1].ypos * WIDTH + entities[1].xpos] == UP_STAIR) {
+            if (map.map[entities[1].p.y * WIDTH + entities[1].p.x] ==
+                UP_STAIR) {
                 done = true;
             }
             break;
         }
-        display_map(main_win, map, entities, num_entities);
+
+        if (entity_set_pos(&entities[1], newp, &map))
+            entity_set_pos(&entities[0], newp_cam, &map);
+
+        display_map(windows.main, &map, entities, num_entities);
     }
 
-    free(map);
-    free(open_tiles);
+    free(map.map);
     free(entities);
 
     endwin();

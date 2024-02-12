@@ -15,16 +15,16 @@ enum direction {
     NUM_DIRS,
 };
 
-void create_cave(
-    enum tile_type **map, struct point **open_tiles, int *num_open_tiles,
-    struct point *up, struct point *down
-)
+void create_cave(struct map *map)
 {
+    map->width  = WIDTH;
+    map->height = HEIGHT;
+
     // create a map consisting entirely of walls
-    *map = malloc(sizeof(enum tile_type) * HEIGHT * WIDTH);
+    map->map = malloc(sizeof(enum tile_type) * HEIGHT * WIDTH);
     for (int i = 0; i < HEIGHT; ++i) {
         for (int j = 0; j < WIDTH; ++j) {
-            (*map)[i * WIDTH + j] = WALL;
+            map->map[i * WIDTH + j] = WALL;
         }
     }
 
@@ -33,15 +33,18 @@ void create_cave(
     int start_y = HEIGHT / 2;
 
     // make the starting point GROUND
-    (*map)[start_y * WIDTH + start_x] = GROUND;
-    *open_tiles        = malloc(sizeof(struct point) * HEIGHT * WIDTH);
-    *num_open_tiles    = 1;
-    (*open_tiles)[0].x = start_x;
-    (*open_tiles)[0].y = start_y;
+    map->map[start_y * WIDTH + start_x] = GROUND;
+
+    // setup the open tiles
+    struct point *open_tiles = malloc(sizeof(struct point) * HEIGHT * WIDTH);
+
+    int num_open_tiles = 1;
+    open_tiles[0].x    = start_x;
+    open_tiles[0].y    = start_y;
 
     for (int i = 0; i < NUM_WALKERS; ++i) {
         // get a random open point
-        struct point curr_point = (*open_tiles)[rand() % *num_open_tiles];
+        struct point curr_point = open_tiles[rand() % num_open_tiles];
 
         int x_pos = curr_point.x;
         int y_pos = curr_point.y;
@@ -51,13 +54,13 @@ void create_cave(
                         y_pos < HEIGHT - 1 && y_pos >= 1;
              ++j) {
             // add new open point if the current point is still a wall
-            if ((*map)[y_pos * WIDTH + x_pos] == WALL) {
-                (*open_tiles)[*num_open_tiles].x = x_pos;
-                (*open_tiles)[*num_open_tiles].y = y_pos;
-                ++(*num_open_tiles);
+            if (map->map[y_pos * WIDTH + x_pos] == WALL) {
+                open_tiles[num_open_tiles].x = x_pos;
+                open_tiles[num_open_tiles].y = y_pos;
+                ++num_open_tiles;
             }
 
-            (*map)[y_pos * WIDTH + x_pos] = GROUND; // assign ground
+            map->map[y_pos * WIDTH + x_pos] = GROUND; // assign ground
 
             // move in a random direction
             enum direction dir = rand() % NUM_DIRS;
@@ -72,16 +75,18 @@ void create_cave(
     }
 
     // assign the up stair and remove from open tiles
-    int in            = rand() % *num_open_tiles;
-    *up               = (*open_tiles)[in];
-    (*open_tiles)[in] = (*open_tiles)[*num_open_tiles - 1];
-    --(*num_open_tiles);
-    (*map)[up->y * WIDTH + up->x] = UP_STAIR;
+    int in           = rand() % num_open_tiles;
+    map->entry_point = open_tiles[in];
+    open_tiles[in]   = open_tiles[num_open_tiles - 1];
+    --num_open_tiles;
+    map->map[map->entry_point.y * WIDTH + map->entry_point.x] = UP_STAIR;
 
     // assign the down stair and remove from open tiles
-    in                = rand() % *num_open_tiles;
-    *down             = (*open_tiles)[in];
-    (*open_tiles)[in] = (*open_tiles)[*num_open_tiles - 1];
-    --(*num_open_tiles);
-    (*map)[down->y * WIDTH + down->x] = DOWN_STAIR;
+    in                = rand() % num_open_tiles;
+    struct point down = open_tiles[in];
+    open_tiles[in]    = open_tiles[num_open_tiles - 1];
+    --num_open_tiles;
+    map->map[down.y * WIDTH + down.x] = DOWN_STAIR;
+
+    free(open_tiles);
 }
