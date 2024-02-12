@@ -5,3 +5,6 @@ main: main.c cavegen.o
 
 cavegen.o: cavegen.c
 	$(CC) cavegen.c -c -o cavegen.o
+
+clean:
+	rm -rf main cavegen.o
