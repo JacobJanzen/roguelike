@@ -3,10 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 
-#define HEIGHT      100
-#define WIDTH       180
 #define MAX_STEPS   200
 #define NUM_WALKERS 100
 
@@ -18,36 +15,51 @@ enum direction {
     NUM_DIRS,
 };
 
-void create_cave(bool **map, struct point **open, int *open_tiles)
+void create_cave(
+    enum tile_type **map, struct point **open_tiles, int *num_open_tiles,
+    struct point *up, struct point *down
+)
 {
-    srand(time(NULL));
-    *map = malloc(sizeof(bool) * HEIGHT * WIDTH);
+    // create a map consisting entirely of walls
+    *map = malloc(sizeof(enum tile_type) * HEIGHT * WIDTH);
     for (int i = 0; i < HEIGHT; ++i) {
         for (int j = 0; j < WIDTH; ++j) {
-            (*map)[i * WIDTH + j] = false;
+            (*map)[i * WIDTH + j] = WALL;
         }
     }
 
-    int start_x    = WIDTH / 2;
-    int start_y    = HEIGHT / 2;
-    *open_tiles    = 1;
-    *open          = malloc(sizeof(struct point) * HEIGHT * WIDTH);
-    struct point p = {.x = start_x, .y = start_y};
-    (*open)[0]     = p;
+    // start in the middle of the screen
+    int start_x = WIDTH / 2;
+    int start_y = HEIGHT / 2;
+
+    // make the starting point GROUND
+    (*map)[start_y * WIDTH + start_x] = GROUND;
+    *open_tiles        = malloc(sizeof(struct point) * HEIGHT * WIDTH);
+    *num_open_tiles    = 1;
+    (*open_tiles)[0].x = start_x;
+    (*open_tiles)[0].y = start_y;
 
     for (int i = 0; i < NUM_WALKERS; ++i) {
-        struct point curr_point = (*open)[rand() % *open_tiles];
-        int          x_pos      = curr_point.x;
-        int          y_pos      = curr_point.y;
+        // get a random open point
+        struct point curr_point = (*open_tiles)[rand() % *num_open_tiles];
 
+        int x_pos = curr_point.x;
+        int y_pos = curr_point.y;
+
+        // iterate until the walk exits the array or MAX_STEPS is reached
         for (int j = 1; j < MAX_STEPS - 1 && x_pos < WIDTH - 1 && x_pos >= 1 &&
                         y_pos < HEIGHT - 1 && y_pos >= 1;
              ++j) {
-            if (!((*map)[y_pos * WIDTH + x_pos])) {
-                (*map)[y_pos * WIDTH + x_pos] = true;
-                struct point p                = {.x = x_pos, .y = y_pos};
-                (*open)[(*open_tiles)++]      = p;
+            // add new open point if the current point is still a wall
+            if ((*map)[y_pos * WIDTH + x_pos] == WALL) {
+                (*open_tiles)[*num_open_tiles].x = x_pos;
+                (*open_tiles)[*num_open_tiles].y = y_pos;
+                ++(*num_open_tiles);
             }
+
+            (*map)[y_pos * WIDTH + x_pos] = GROUND; // assign ground
+
+            // move in a random direction
             enum direction dir = rand() % NUM_DIRS;
             switch (dir) {
             case UP : --y_pos; break;
@@ -59,27 +71,17 @@ void create_cave(bool **map, struct point **open, int *open_tiles)
         }
     }
 
-    for (int i = 0; i < NUM_WALKERS; ++i) {
-        struct point curr_point = (*open)[rand() % *open_tiles];
-        int          x_pos      = curr_point.x;
-        int          y_pos      = curr_point.y;
+    // assign the up stair and remove from open tiles
+    int in            = rand() % *num_open_tiles;
+    *up               = (*open_tiles)[in];
+    (*open_tiles)[in] = (*open_tiles)[*num_open_tiles - 1];
+    --(*num_open_tiles);
+    (*map)[up->y * WIDTH + up->x] = UP_STAIR;
 
-        for (int j = 1; j < MAX_STEPS - 1 && x_pos < WIDTH - 1 && x_pos >= 1 &&
-                        y_pos < HEIGHT - 1 && y_pos >= 1;
-             ++j) {
-            if (!((*map)[y_pos * WIDTH + x_pos])) {
-                (*map)[y_pos * WIDTH + x_pos] = true;
-                struct point p                = {.x = x_pos, .y = y_pos};
-                (*open)[(*open_tiles)++]      = p;
-            }
-            enum direction dir = rand() % NUM_DIRS;
-            switch (dir) {
-            case UP : --y_pos; break;
-            case LEFT : --x_pos; break;
-            case RIGHT : ++x_pos; break;
-            case DOWN : ++y_pos; break;
-            default : exit(EXIT_FAILURE); // should not occur
-            }
-        }
-    }
+    // assign the down stair and remove from open tiles
+    in                = rand() % *num_open_tiles;
+    *down             = (*open_tiles)[in];
+    (*open_tiles)[in] = (*open_tiles)[*num_open_tiles - 1];
+    --(*num_open_tiles);
+    (*map)[down->y * WIDTH + down->x] = DOWN_STAIR;
 }
