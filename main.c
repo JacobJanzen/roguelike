@@ -1,5 +1,8 @@
 #include <curses.h>
+#include <locale.h>
 #include <stdlib.h>
+
+#include "cavegen.h"
 
 #define MAIN_PANEL_WIDTH         100
 #define MAIN_PANEL_HEIGHT        41
@@ -17,15 +20,10 @@ WINDOW *create_newwin(int height, int width, int starty, int startx)
     return local_win;
 }
 
-void destroy_win(WINDOW *local_win)
+void initialize(void)
 {
-    wborder(local_win, ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ');
-    wrefresh(local_win);
-    delwin(local_win);
-}
+    setlocale(LC_ALL, ""); // allow extended ASCII
 
-int main(void)
-{
     initscr(); // initialize curses
 
     // exit on unsupported consoles
@@ -47,11 +45,45 @@ int main(void)
     curs_set(0);          // disable the cursor
     start_color();        // enable colours
 
-    int starty = 12;
-    int startx = 40;
+    // setup colours
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
     wattron(stdscr, COLOR_PAIR(1));
     refresh();
+}
+
+void display_map(WINDOW *win, bool *map, int cam_y, int cam_x)
+{
+    for (int i = 1; i < MAIN_PANEL_HEIGHT - 1; ++i) {
+        for (int j = 1; j < MAIN_PANEL_WIDTH - 1; ++j) {
+            int i1 = i - 1 + cam_y;
+            int j1 = j - 1 + cam_x;
+            if (i1 > HEIGHT || j1 > WIDTH || i1 < 0 || j1 < 0) {
+                mvwaddch(win, i, j, ' ');
+            } else if (map[i1 * WIDTH + j1]) {
+                mvwaddch(win, i, j, '.');
+            } else if (i1 > 0 && map[(i1 - 1) * WIDTH + j1]) {
+                mvwprintw(win, i, j, "█");
+            } else if (i1 < HEIGHT - 1 && map[(i1 + 1) * WIDTH + j1]) {
+                mvwprintw(win, i, j, "█");
+            } else if (j1 > 0 && map[i1 * WIDTH + j1 - 1]) {
+                mvwprintw(win, i, j, "█");
+            } else if (j1 < WIDTH - 1 && map[i1 * WIDTH + j1 + 1]) {
+                mvwprintw(win, i, j, "█");
+            } else {
+                mvwaddch(win, i, j, ' ');
+            }
+        }
+    }
+    mvwaddch(win, MAIN_PANEL_HEIGHT / 2, MAIN_PANEL_WIDTH / 2, '@');
+    wrefresh(win);
+}
+
+int main(void)
+{
+    int starty = 12;
+    int startx = 40;
+
+    initialize();
 
     // create the windows
     WINDOW *inst = create_newwin(
@@ -82,38 +114,46 @@ int main(void)
     wrefresh(msgs);
 
     wattron(main_win, COLOR_PAIR(1));
-    mvwaddch(main_win, starty, startx, '@');
     wrefresh(main_win);
+
+    bool         *map;
+    struct point *open_tiles;
+    int           num_open_tiles;
+    create_cave(&map, &open_tiles, &num_open_tiles);
+
+    display_map(main_win, map, starty, startx);
 
     int ch;
     while ((ch = getch()) != KEY_F(1)) {
+        int xpos = startx + MAIN_PANEL_WIDTH / 2 - 1;
+        int ypos = starty + MAIN_PANEL_HEIGHT / 2 - 1;
         switch (ch) {
         case 'k' :
-            if (starty > 1) {
-                mvwaddch(main_win, starty, startx, ' ');
-                mvwaddch(main_win, --starty, startx, '@');
+            if (ypos > 0) {
+                if (map[(ypos - 1) * WIDTH + xpos])
+                    --starty;
             }
             break;
         case 'j' :
-            if (starty < MAIN_PANEL_HEIGHT - 2) {
-                mvwaddch(main_win, starty, startx, ' ');
-                mvwaddch(main_win, ++starty, startx, '@');
+            if (ypos < HEIGHT - 1) {
+                if (map[(ypos + 1) * WIDTH + xpos])
+                    ++starty;
             }
             break;
         case 'h' :
-            if (startx > 1) {
-                mvwaddch(main_win, starty, startx, ' ');
-                mvwaddch(main_win, starty, --startx, '@');
+            if (xpos > 0) {
+                if (map[ypos * WIDTH + xpos - 1])
+                    --startx;
             }
             break;
         case 'l' :
-            if (startx < MAIN_PANEL_WIDTH - 2) {
-                mvwaddch(main_win, starty, startx, ' ');
-                mvwaddch(main_win, starty, ++startx, '@');
+            if (xpos < WIDTH - 1) {
+                if (map[ypos * WIDTH + xpos + 1])
+                    ++startx;
             }
             break;
         }
-        wrefresh(main_win);
+        display_map(main_win, map, starty, startx);
     }
 
     endwin();
