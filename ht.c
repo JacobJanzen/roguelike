@@ -156,30 +156,23 @@ void ht_iter_init(ht_t *h)
 
 void *ht_iter_next(ht_t *h)
 {
+    void *out;
+
     // return NULL if we've reached the end
     if (!h->curr_node && h->curr_index >= h->max_size)
         return NULL;
 
+    // look for next index with node if current node is NULL
     if (!h->curr_node) {
-        // look for next index with node if current node is NULL
         while (!h->curr_node) {
             h->curr_node = h->vals[h->curr_index++];
             if (h->curr_index >= h->max_size)
                 return NULL;
         }
-        return h->curr_node->val;
-    } else {
-        // move to the next node
-        h->curr_node = h->curr_node->next;
-        if (h->curr_node)
-            return h->curr_node->val;
-
-        // look for next index with node if necessary
-        while (!h->curr_node) {
-            h->curr_node = h->vals[h->curr_index++];
-            if (h->curr_index >= h->max_size)
-                return NULL;
-        }
-        return h->curr_node->val;
     }
+
+    // get the value and move to the next node
+    out          = h->curr_node->val;
+    h->curr_node = h->curr_node->next;
+    return out;
 }
