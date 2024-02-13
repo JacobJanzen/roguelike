@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "cavegen.h"
+#include "ht.h"
 
 #define MAIN_PANEL_WIDTH         100
 #define MAIN_PANEL_HEIGHT        41
@@ -17,7 +18,6 @@
 #define MAX_ENTITIES 100
 
 struct entity {
-    char        *name;
     struct point p;
     char        *disp_ch;
     bool         solid;
@@ -75,15 +75,15 @@ void initialize(void)
     refresh();
 }
 
-void display_map(
-    WINDOW *win, struct map *map, struct entity *entities, int num_entities
-)
+void display_map(WINDOW *win, struct map *map, ht_t *entities)
 {
     // print map
+    struct entity *camera = ht_find(entities, "camera");
+
     for (int i = 1; i < MAIN_PANEL_HEIGHT - 1; ++i) {
         for (int j = 1; j < MAIN_PANEL_WIDTH - 1; ++j) {
-            int map_i = i - 1 + entities[0].p.y;
-            int map_j = j - 1 + entities[0].p.x;
+            int map_i = i - 1 + camera->p.y;
+            int map_j = j - 1 + camera->p.x;
 
             if (map_i > map->height || map_j > map->width || map_i < 0 ||
                 map_j < 0) {
@@ -118,14 +118,17 @@ void display_map(
     }
 
     // print entities
-    for (int i = 1; i < num_entities; ++i) {
-        if (entities[i].visible) {
+    ht_iter_init(entities);
+    struct entity *e;
+    while ((e = ht_iter_next(entities))) {
+        if (e->visible) {
             mvwprintw(
-                win, entities[i].p.y - entities[0].p.y + 1,
-                entities[i].p.x - entities[0].p.x + 1, entities[i].disp_ch
+                win, e->p.y - camera->p.y + 1, e->p.x - camera->p.x + 1,
+                e->disp_ch
             );
         }
     }
+
     wrefresh(win);
 }
 
@@ -221,32 +224,42 @@ int main(void)
     struct map map;
     create_cave(&map);
 
-    // create the camera and player at the up stairs
-    struct entity *entities = malloc(sizeof(struct entity) * MAX_ENTITIES);
-    entities[0].disp_ch     = "";
-    entities[0].name        = "camera";
-    entities[0].p.x         = map.entry_point.x - MAIN_PANEL_WIDTH / 2 + 1;
-    entities[0].p.y         = map.entry_point.y - MAIN_PANEL_HEIGHT / 2 + 1;
-    entities[0].solid       = false;
-    entities[0].visible     = false;
-    entities[1].disp_ch     = "@";
-    entities[1].name        = "player";
-    entities[1].p           = map.entry_point;
-    entities[1].solid       = true;
-    entities[1].visible     = true;
-    int num_entities        = 2;
+    // create the entity map
+    ht_t *entities = ht_create();
+
+    // create the camera
+    struct entity camera;
+    camera.disp_ch = "";
+    camera.solid   = false;
+    camera.visible = false;
+    ht_insert(entities, "camera", &camera);
+
+    // create the player
+    struct entity player;
+    player.disp_ch = "@";
+    player.solid   = true;
+    player.visible = true;
+    ht_insert(entities, "player", &player);
+
+    // set starting point
+    struct point cam_p = {
+        .x = map.entry_point.x - MAIN_PANEL_WIDTH / 2 + 1,
+        .y = map.entry_point.y - MAIN_PANEL_HEIGHT / 2 + 1,
+    };
+    entity_set_pos(&player, map.entry_point, &map);
+    entity_set_pos(&camera, cam_p, &map);
 
     // start displaying things
-    display_map(windows.main, &map, entities, num_entities);
+    display_map(windows.main, &map, entities);
     display_instructions(windows.inst);
-    display_status(windows.stat, &entities[1]);
+    display_status(windows.stat, &player);
     display_message(windows.msgs, "");
 
     int  ch;
     bool done = false;
     while (!done && (ch = getch()) != KEY_F(1)) {
-        struct point newp     = entities[1].p;
-        struct point newp_cam = entities[0].p;
+        struct point newp     = player.p;
+        struct point newp_cam = camera.p;
         switch (ch) {
         case 'k' :
             --newp.y;
@@ -265,8 +278,7 @@ int main(void)
             ++newp_cam.x;
             break;
         case '>' :
-            if (map.map[entities[1].p.y * map.width + entities[1].p.x] ==
-                DOWN_STAIR) {
+            if (map.map[player.p.y * map.width + player.p.x] == DOWN_STAIR) {
                 free(map.map);
                 create_cave(&map);
 
@@ -278,17 +290,19 @@ int main(void)
             }
             break;
         case '<' :
-            if (map.map[entities[1].p.y * WIDTH + entities[1].p.x] ==
-                UP_STAIR) {
+            if (map.map[player.p.y * WIDTH + player.p.x] == UP_STAIR) {
                 done = true;
             }
             break;
         }
 
-        if (entity_set_pos(&entities[1], newp, &map))
-            entity_set_pos(&entities[0], newp_cam, &map);
+        if (entity_set_pos(&player, newp, &map))
+            entity_set_pos(&camera, newp_cam, &map);
 
-        display_map(windows.main, &map, entities, num_entities);
+        display_map(windows.main, &map, entities);
+        char msg[100];
+        sprintf(msg, "x: %d, y: %d", player.p.x, player.p.y);
+        display_message(windows.msgs, msg);
     }
 
     free(map.map);
