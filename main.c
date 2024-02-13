@@ -43,7 +43,6 @@ WINDOW *create_newwin(int height, int width, int starty, int startx)
 
 void initialize(void)
 {
-    srand(time(NULL));
     setlocale(LC_ALL, ""); // allow extended ASCII
 
     initscr(); // initialize curses
@@ -212,8 +211,58 @@ void create_windows(struct windows *wins)
     );
 }
 
+bool process_input(int ch, ht_t *entities, struct map *map)
+{
+    struct entity *player = ht_find(entities, "player");
+    struct entity *camera = ht_find(entities, "camera");
+
+    struct point newp     = player->p;
+    struct point newp_cam = camera->p;
+    switch (ch) {
+    case 'k' :
+        --newp.y;
+        --newp_cam.y;
+        break;
+    case 'j' :
+        ++newp.y;
+        ++newp_cam.y;
+        break;
+    case 'h' :
+        --newp.x;
+        --newp_cam.x;
+        break;
+    case 'l' :
+        ++newp.x;
+        ++newp_cam.x;
+        break;
+    case '>' :
+        if (map->map[player->p.y * map->width + player->p.x] == DOWN_STAIR) {
+            free(map->map);
+            create_cave(map);
+
+            newp       = map->entry_point;
+            newp_cam.x = map->entry_point.x - MAIN_PANEL_WIDTH / 2 + 1;
+            newp_cam.y = map->entry_point.y - MAIN_PANEL_HEIGHT / 2 + 1;
+        }
+        break;
+    case '<' :
+        if (map->map[player->p.y * WIDTH + player->p.x] == UP_STAIR) {
+            return true;
+        }
+        break;
+    }
+
+    if (entity_set_pos(player, newp, map))
+        entity_set_pos(camera, newp_cam, map);
+
+    return false;
+}
+
 int main(void)
 {
+    unsigned int seed = time(NULL);
+    srand(seed);
+
     initialize();
 
     // create windows
@@ -258,55 +307,13 @@ int main(void)
     int  ch;
     bool done = false;
     while (!done && (ch = getch()) != KEY_F(1)) {
-        struct point newp     = player.p;
-        struct point newp_cam = camera.p;
-        switch (ch) {
-        case 'k' :
-            --newp.y;
-            --newp_cam.y;
+        if (process_input(ch, entities, &map))
             break;
-        case 'j' :
-            ++newp.y;
-            ++newp_cam.y;
-            break;
-        case 'h' :
-            --newp.x;
-            --newp_cam.x;
-            break;
-        case 'l' :
-            ++newp.x;
-            ++newp_cam.x;
-            break;
-        case '>' :
-            if (map.map[player.p.y * map.width + player.p.x] == DOWN_STAIR) {
-                free(map.map);
-                create_cave(&map);
-
-                newp       = map.entry_point;
-                newp_cam.x = map.entry_point.x - MAIN_PANEL_WIDTH / 2 + 1;
-                newp_cam.y = map.entry_point.y - MAIN_PANEL_HEIGHT / 2 + 1;
-
-                display_message(windows.msgs, "Entered new level");
-            }
-            break;
-        case '<' :
-            if (map.map[player.p.y * WIDTH + player.p.x] == UP_STAIR) {
-                done = true;
-            }
-            break;
-        }
-
-        if (entity_set_pos(&player, newp, &map))
-            entity_set_pos(&camera, newp_cam, &map);
-
         display_map(windows.main, &map, entities);
-        char msg[100];
-        sprintf(msg, "x: %d, y: %d", player.p.x, player.p.y);
-        display_message(windows.msgs, msg);
     }
 
     free(map.map);
-    free(entities);
+    ht_destroy(entities);
 
     endwin();
 
