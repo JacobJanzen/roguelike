@@ -7,5 +7,7 @@ main_SOURCES = \
 		display.h \
 		ht.c \
 		ht.h \
+		common.h \
+		entity.h \
 		main.c
 

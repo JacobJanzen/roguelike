@@ -17,3 +17,4 @@ Makefile
 *.o
 /src/main
 /stamp-h1
+/*.gz
