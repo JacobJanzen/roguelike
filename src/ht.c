@@ -22,6 +22,42 @@ struct hash_table {
     bool         iterating;
 };
 
+static void rehash(ht_t *h, int newsize)
+{
+    ht_t *new_h = ht_create(newsize);
+
+    ht_iter_init(h);
+
+    struct kvp kvp = ht_iter_next(h);
+    while (kvp.key) {
+        ht_insert(new_h, kvp.key, kvp.val);
+        kvp = ht_iter_next(h);
+    }
+
+    // only destroy vals if it isn't NULL
+    if (h->vals) {
+        // iterate through the hash values
+        for (int i = 0; i < h->max_size; ++i) {
+            // iterate through the linked list and remove the value
+            struct node *curr = h->vals[i];
+            struct node *prev;
+            while (curr) {
+                prev = curr;
+                curr = curr->next;
+                free(prev->key);
+                free(prev);
+            }
+        }
+        free(h->vals);
+    }
+
+    h->max_size   = newsize;
+    h->vals       = new_h->vals;
+    h->curr_index = 0;
+    h->curr_node  = NULL;
+    h->iterating  = false;
+}
+
 static unsigned long djb2_hash(char *str)
 {
     unsigned long hash = 5381;
@@ -33,12 +69,12 @@ static unsigned long djb2_hash(char *str)
     return hash;
 }
 
-ht_t *ht_create(void)
+ht_t *ht_create(int max_size)
 {
     ht_t *h       = malloc(sizeof(ht_t));
-    h->max_size   = SIZE;
+    h->max_size   = max_size;
     h->size       = 0;
-    h->vals       = malloc(sizeof(struct node) * h->max_size);
+    h->vals       = malloc(sizeof(struct node) * max_size);
     h->curr_index = 0;
     h->curr_node  = NULL;
     h->iterating  = false;
@@ -91,6 +127,9 @@ void *ht_find(ht_t *h, char *key)
 
 void ht_insert(ht_t *h, char *key, void *val)
 {
+    if (h->size > h->max_size * 0.75)
+        rehash(h, h->max_size * 2);
+
     unsigned int hash = djb2_hash(key) % h->max_size;
 
     // create a node
@@ -114,6 +153,9 @@ void ht_insert(ht_t *h, char *key, void *val)
 
 void ht_delete(ht_t *h, char *key)
 {
+    if (h->size < h->max_size * 0.25)
+        rehash(h, h->max_size * 0.5);
+
     unsigned int hash = djb2_hash(key) % h->max_size;
 
     if (!h->vals[hash])
@@ -154,25 +196,29 @@ void ht_iter_init(ht_t *h)
     h->curr_node  = h->vals[0];
 }
 
-void *ht_iter_next(ht_t *h)
+struct kvp ht_iter_next(ht_t *h)
 {
-    void *out;
+    struct kvp out = {
+        .key = NULL,
+        .val = NULL,
+    };
 
     // return NULL if we've reached the end
     if (!h->curr_node && h->curr_index >= h->max_size)
-        return NULL;
+        return out;
 
     // look for next index with node if current node is NULL
     if (!h->curr_node) {
         while (!h->curr_node) {
             h->curr_node = h->vals[h->curr_index++];
             if (h->curr_index >= h->max_size)
-                return NULL;
+                return out;
         }
     }
 
     // get the value and move to the next node
-    out          = h->curr_node->val;
+    out.key      = h->curr_node->key;
+    out.val      = h->curr_node->val;
     h->curr_node = h->curr_node->next;
     return out;
 }

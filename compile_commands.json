@@ -1,0 +1,54 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/clang",
+      "-c",
+      "-Iinclude",
+      "-o",
+      "build/cavegen.o",
+      "src/cavegen.c"
+    ],
+    "directory": "/Users/jjanzen/Documents/projects/mapgen",
+    "file": "/Users/jjanzen/Documents/projects/mapgen/src/cavegen.c",
+    "output": "/Users/jjanzen/Documents/projects/mapgen/build/cavegen.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/clang",
+      "-c",
+      "-Iinclude",
+      "-o",
+      "build/display.o",
+      "src/display.c"
+    ],
+    "directory": "/Users/jjanzen/Documents/projects/mapgen",
+    "file": "/Users/jjanzen/Documents/projects/mapgen/src/display.c",
+    "output": "/Users/jjanzen/Documents/projects/mapgen/build/display.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/clang",
+      "-c",
+      "-Iinclude",
+      "-o",
+      "build/ht.o",
+      "src/ht.c"
+    ],
+    "directory": "/Users/jjanzen/Documents/projects/mapgen",
+    "file": "/Users/jjanzen/Documents/projects/mapgen/src/ht.c",
+    "output": "/Users/jjanzen/Documents/projects/mapgen/build/ht.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/clang",
+      "-c",
+      "-Iinclude",
+      "-o",
+      "build/main.o",
+      "main.c"
+    ],
+    "directory": "/Users/jjanzen/Documents/projects/mapgen",
+    "file": "/Users/jjanzen/Documents/projects/mapgen/main.c",
+    "output": "/Users/jjanzen/Documents/projects/mapgen/build/main.o"
+  }
+]

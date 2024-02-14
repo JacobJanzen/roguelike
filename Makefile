@@ -1,15 +1,27 @@
-all: main
+CC=clang
+SRCDIR=src
+BUILDDIR=build
+TARGET=$(BUILDDIR)/main
 
-CFLAGS=-g
+INCLUDE_PATHS=-Iinclude
+LDFLAGS=-lcurses
 
-main: main.c cavegen.o ht.o
-	$(CC) main.c cavegen.o ht.o -lcurses -o main -D_XOPEN_SOURCE_EXTENDED $(CFLAGS)
+SRCS=$(wildcard $(SRCDIR)/*.c)
+OBJS=$(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SRCS))
 
-cavegen.o: cavegen.c
-	$(CC) cavegen.c -c -o cavegen.o $(CFLAGS)
+all: $(TARGET)
 
-ht.o: ht.c
-	$(CC) ht.c -c -o ht.o $(CFLAGS)
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c
+	mkdir -p $(BUILDDIR)
+	$(CC) -c $(CFLAGS) $(INCLUDE_PATHS) $^ -o $@
+
+$(BUILDDIR)/main.o: main.c
+	mkdir -p $(BUILDDIR)
+	$(CC) -c $(CFLAGS) $(INCLUDE_PATHS) $^ -o $@
+
+$(TARGET): $(OBJS) $(BUILDDIR)/main.o
+	mkdir -p $(BUILDDIR)
+	$(CC) -o $@ $(LDFLAGS) $^
 
 clean:
-	rm -rf main cavegen.o
+	rm -rf $(BUILDDIR)
