@@ -30,11 +30,14 @@ enum action {
     NUM_ACTIONS,
 };
 
-display_t  *display_init(void);
-void        display_map(display_t *disp, struct map *map, ht_t *entities);
-void        display_instructions(display_t *disp);
-void        display_message(display_t *disp, char *msg);
-void        display_status(display_t *disp, struct entity *entity);
+display_t *display_init(void);
+void       display_destroy(display_t *disp);
+
+void display_map(display_t *disp, struct map *map, ht_t *entities);
+void display_instructions(display_t *disp);
+void display_message(display_t *disp, char *msg);
+void display_status(display_t *disp, struct entity *entity);
+
 enum action display_process_input(void);
 
 #endif // DISPLAY_H_

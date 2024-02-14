@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SIZE 1024
-
 struct node {
     char        *key;
     void        *val;
@@ -56,6 +54,8 @@ static void rehash(ht_t *h, int newsize)
     h->curr_index = 0;
     h->curr_node  = NULL;
     h->iterating  = false;
+
+    free(new_h);
 }
 
 static unsigned long djb2_hash(char *str)

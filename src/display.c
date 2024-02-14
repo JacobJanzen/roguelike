@@ -89,6 +89,16 @@ display_t *display_init(void)
     return create_windows();
 }
 
+void display_destroy(display_t *disp)
+{
+    delwin(disp->main);
+    delwin(disp->inst);
+    delwin(disp->msgs);
+    delwin(disp->stat);
+
+    free(disp);
+}
+
 void display_map(display_t *disp, struct map *map, ht_t *entities)
 {
     // print map

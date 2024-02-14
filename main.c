@@ -138,6 +138,7 @@ int main(void)
 
     free(map.map);
     ht_destroy(entities);
+    display_destroy(disp);
 
     endwin();
 
