@@ -1,6 +1,6 @@
-bin_PROGRAMS = main
+bin_PROGRAMS = urlg
 
-main_SOURCES = \
+urlg_SOURCES = \
 		cavegen.c \
 		cavegen.h \
 		display.c \

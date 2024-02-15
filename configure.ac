@@ -1,5 +1,5 @@
 AC_PREREQ([2.65])
-AC_INIT([roguelike], [0.1], [jacob.a.s.janzen@gmail.com])
+AC_INIT([urlg], [0.0.1], [jacob.a.s.janzen@gmail.com])
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_AUX_DIR([build-aux])
 
