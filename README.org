@@ -1,0 +1,46 @@
+#+title: URLG (Untitled Rogue-Like Game)
+* About
+This is a simple Rogue-like game implemented in C with minimal use of libraries (only =curses= and the C standard library as of right now). It is primarily a place for me to experiment with ideas I have while procrastinating.
+
+* Features Implemented
+- TUI interface
+- Basic movement
+- Procedurally generated caves
+- Basic entity-component system
+
+* Building and Installing
+** Release Version
+The application can be installed on any Unix system by downloading a release and running
+#+begin_src sh
+tar xzf urlg-<version>.tar.gz
+cd urlg-<version>
+./configure && make
+make install # run as root
+#+end_src
+
+and uninstalled with
+
+#+begin_src sh
+make uninstall # run as root
+#+end_src
+
+It is only available to be installed from source. I do not distribute pre-compiled binaries.
+
+The game can then be run as =urlg= in your terminal.
+
+** Development Version
+
+The development version of the software is can be installed from the =git= repository if you have GNU Autotools installed with the following commands
+
+#+begin_src sh
+autoreconf --install
+./configure
+make
+make install # run as root
+#+end_src
+
+and uninstalled with
+
+#+begin_src sh
+make uninstall # run as root
+#+end_src

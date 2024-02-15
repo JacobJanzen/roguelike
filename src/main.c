@@ -93,6 +93,10 @@ int main(void)
 
     display_t *disp = display_init();
 
+    if (!disp) {
+        return EXIT_FAILURE;
+    }
+
     // create the map
     struct map map;
     create_cave(&map);
