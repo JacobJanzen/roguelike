@@ -1,8 +1,21 @@
+/*
+This file is part of urlg.
+urlg is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version. urlg is
+distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE. See the GNU General Public License for more details. You should have
+received a copy of the GNU General Public License along with Foobar. If not, see
+<https://www.gnu.org/licenses/>.
+*/
 #include <curses.h>
+#include <getopt.h>
 #include <locale.h>
 #include <stdlib.h>
 #include <time.h>
 
+#include "../config.h"
 #include "cavegen.h"
 #include "common.h"
 #include "display.h"
@@ -86,8 +99,38 @@ bool game_update(
     return false;
 }
 
-int main(void)
+void print_version(void)
 {
+    printf("%s\n", PACKAGE_STRING);
+    printf("Copyright (C) 2024  Jacob Janzen\n");
+    printf("This is free software; see the source for copying conditions.\n");
+    printf(
+        "There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A\n"
+    );
+    printf("PARTICULAR PURPOSE.\n");
+}
+
+int main(int argc, char **argv)
+{
+    int           option_index = 0;
+    int           ch;
+    int           version_flag = 0;
+    struct option longopts[]   = {
+        {"version", no_argument, &version_flag, 'v'},
+    };
+    while ((ch = getopt_long(argc, argv, ":v", longopts, &option_index)) != -1
+    ) {
+        switch (ch) {
+        case 'v' : version_flag = 1; break;
+        case 0 : break;
+        default : break;
+        }
+    }
+    if (version_flag) {
+        print_version();
+        return EXIT_SUCCESS;
+    }
+
     unsigned int seed = time(NULL);
     srand(seed);
 
@@ -132,7 +175,6 @@ int main(void)
     display_status(disp, &player);
     display_message(disp, "");
 
-    int  ch;
     bool done = false;
     while (!done) {
         enum action action = display_process_input();
