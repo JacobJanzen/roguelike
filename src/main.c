@@ -110,27 +110,52 @@ void print_version(void)
     printf("PARTICULAR PURPOSE.\n");
 }
 
-int main(int argc, char **argv)
+void print_help(void)
+{
+    printf("Usage: urlg [options]\n");
+    printf("Options:\n");
+    printf("  -h, --help                  Print this message and exit.\n");
+    printf(
+        "  -v, --version               Print the version number of urlg and "
+        "exit.\n"
+    );
+    printf("\n");
+    printf("Report bugs to <%s>\n", PACKAGE_BUGREPORT);
+}
+
+void process_cmd_options(int argc, char **argv)
 {
     int           option_index = 0;
     int           ch;
     int           version_flag = 0;
+    int           help_flag    = 0;
     struct option longopts[]   = {
         {"version", no_argument, &version_flag, 'v'},
+        {"help",    no_argument, &help_flag,    'h'},
     };
-    while ((ch = getopt_long(argc, argv, ":v", longopts, &option_index)) != -1
+    while ((ch = getopt_long(argc, argv, ":vh", longopts, &option_index)) != -1
     ) {
         switch (ch) {
         case 'v' : version_flag = 1; break;
+        case 'h' : help_flag = 1; break;
         case 0 : break;
         default : break;
         }
     }
+
+    // print version or help and exit if version/help flag is given
     if (version_flag) {
         print_version();
-        return EXIT_SUCCESS;
+        exit(EXIT_SUCCESS);
     }
+    if (help_flag) {
+        print_help();
+        exit(EXIT_SUCCESS);
+    }
+}
 
+int main(int argc, char **argv)
+{
     unsigned int seed = time(NULL);
     srand(seed);
 
