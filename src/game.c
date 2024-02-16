@@ -88,7 +88,7 @@ void game_step(struct game *game)
     enum action  action   = display_process_input();
 
     switch (action) {
-    case ACTION_EXIT : game->done = true; return;
+    case ACTION_EXIT : game->done = true; break;
     case ACTION_UP :
         --newp.y;
         --newp_cam.y;
@@ -127,7 +127,6 @@ void game_step(struct game *game)
         if (game->map.map[player->p.y * WIDTH + player->p.x] == UP_STAIR) {
             display_message(game->display, "moving up stairs");
             game->done = true;
-            return;
         } else {
             display_message(game->display, "no stairs to go up");
         }
