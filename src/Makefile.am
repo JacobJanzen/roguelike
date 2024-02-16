@@ -12,4 +12,6 @@ urlg_SOURCES = \
 		ht.h \
 		mapgen.c \
 		mapgen.h \
+		save.c \
+		save.h \
 		main.c

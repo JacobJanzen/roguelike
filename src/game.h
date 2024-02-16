@@ -27,7 +27,6 @@ struct game {
 };
 
 struct game *game_init(void);
-struct game *game_load(FILE *savegame);
 void         game_destroy(struct game *game);
 
 void game_step(struct game *game);

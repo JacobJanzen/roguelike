@@ -15,6 +15,7 @@ received a copy of the GNU General Public License along with urlg. If not, see
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "../config.h"
 #include "common.h"
@@ -23,9 +24,10 @@ received a copy of the GNU General Public License along with urlg. If not, see
 #include "game.h"
 #include "ht.h"
 #include "mapgen.h"
+#include "save.h"
 
 struct cmd_option_results {
-    FILE *save_file;
+    char *save_file;
 };
 
 void print_version(void)
@@ -96,13 +98,7 @@ struct cmd_option_results *process_cmd_options(int argc, char **argv)
     }
 
     struct cmd_option_results *res = malloc(sizeof(struct cmd_option_results));
-    if (save_file_name) {
-        res->save_file = fopen(save_file_name, "r+");
-        if (!res->save_file) {
-            perror("failed to open save file");
-            exit(EXIT_FAILURE);
-        }
-    }
+    res->save_file                 = save_file_name;
 
     return res;
 }
@@ -120,15 +116,18 @@ int main(int argc, char **argv)
     else
         game = game_load(cmd->save_file);
 
+    if (!game)
+        return EXIT_FAILURE;
+
     while (!game->done) {
         game_step(game);
     }
 
+    if (cmd->save_file)
+        game_save(game, cmd->save_file);
+
     game_destroy(game);
 
-    if (cmd->save_file) {
-        fclose(cmd->save_file);
-    }
     free(cmd);
 
     return 0;

@@ -12,7 +12,9 @@ received a copy of the GNU General Public License along with urlg. If not, see
 #include "game.h"
 
 #include <stdlib.h>
+#include <string.h>
 
+#include "common.h"
 #include "entity.h"
 
 struct game *game_init(void)
@@ -54,12 +56,6 @@ struct game *game_init(void)
     display_refresh(g->display, &g->map, g->entities);
 
     return g;
-}
-
-struct game *game_load(FILE *savegame)
-{
-    // TODO implement this
-    return game_init();
 }
 
 void game_destroy(struct game *game)
