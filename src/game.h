@@ -13,6 +13,7 @@ received a copy of the GNU General Public License along with urlg. If not, see
 #define GAME_H_
 
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "display.h"
 #include "ht.h"
@@ -22,9 +23,13 @@ struct game {
     ht_t      *entities;
     struct map map;
     display_t *display;
+    bool       done;
 };
 
 struct game *game_init(void);
+struct game *game_load(FILE *savegame);
 void         game_destroy(struct game *game);
+
+void game_step(struct game *game);
 
 #endif // GAME_H_

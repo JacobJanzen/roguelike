@@ -18,6 +18,7 @@ received a copy of the GNU General Public License along with urlg. If not, see
 struct game *game_init(void)
 {
     struct game *g = malloc(sizeof(struct game));
+    g->done        = false;
 
     create_cave(&g->map);
     g->entities = ht_create(64);
@@ -50,7 +51,15 @@ struct game *game_init(void)
     entity_set_position(player, g->map.entry_point, &g->map);
     entity_set_position(camera, cam_p, &g->map);
 
+    display_refresh(g->display, &g->map, g->entities);
+
     return g;
+}
+
+struct game *game_load(FILE *savegame)
+{
+    // TODO implement this
+    return game_init();
 }
 
 void game_destroy(struct game *game)
@@ -66,4 +75,68 @@ void game_destroy(struct game *game)
     }
     ht_destroy(game->entities);
     display_destroy(game->display);
+    free(game);
+}
+
+void game_step(struct game *game)
+{
+    struct entity *player = ht_find(game->entities, "player");
+    struct entity *camera = ht_find(game->entities, "camera");
+
+    struct point newp     = player->p;
+    struct point newp_cam = camera->p;
+    enum action  action   = display_process_input();
+
+    switch (action) {
+    case ACTION_EXIT : game->done = true; return;
+    case ACTION_UP :
+        --newp.y;
+        --newp_cam.y;
+        display_message(game->display, "moving up");
+        break;
+    case ACTION_DOWN :
+        ++newp.y;
+        ++newp_cam.y;
+        display_message(game->display, "moving down");
+        break;
+    case ACTION_LEFT :
+        --newp.x;
+        --newp_cam.x;
+        display_message(game->display, "moving left");
+        break;
+    case ACTION_RIGHT :
+        ++newp.x;
+        ++newp_cam.x;
+        display_message(game->display, "moving right");
+        break;
+    case ACTION_STAIR_DOWN :
+        if (game->map.map[player->p.y * game->map.width + player->p.x] ==
+            DOWN_STAIR) {
+            free(game->map.map);
+            create_cave(&game->map);
+
+            newp       = game->map.entry_point;
+            newp_cam.x = game->map.entry_point.x - MAIN_PANEL_WIDTH / 2 + 1;
+            newp_cam.y = game->map.entry_point.y - MAIN_PANEL_HEIGHT / 2 + 1;
+            display_message(game->display, "moving down stairs");
+        } else {
+            display_message(game->display, "no stairs to go down");
+        }
+        break;
+    case ACTION_STAIR_UP :
+        if (game->map.map[player->p.y * WIDTH + player->p.x] == UP_STAIR) {
+            display_message(game->display, "moving up stairs");
+            game->done = true;
+            return;
+        } else {
+            display_message(game->display, "no stairs to go up");
+        }
+        break;
+    default : display_message(game->display, "unrecognized command"); break;
+    }
+
+    if (entity_set_position(player, newp, &game->map))
+        entity_set_position(camera, newp_cam, &game->map);
+
+    display_map(game->display, &game->map, game->entities);
 }
