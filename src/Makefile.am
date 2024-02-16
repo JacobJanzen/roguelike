@@ -1,13 +1,15 @@
 bin_PROGRAMS = urlg
 
 urlg_SOURCES = \
-		cavegen.c \
-		cavegen.h \
+		common.h \
 		display.c \
 		display.h \
+		entity.h \
+		entity.c \
+		game.h \
+		game.c \
 		ht.c \
 		ht.h \
-		common.h \
-		entity.h \
+		mapgen.c \
+		mapgen.h \
 		main.c
-

@@ -9,32 +9,29 @@ PURPOSE. See the GNU General Public License for more details. You should have
 received a copy of the GNU General Public License along with urlg. If not, see
 <https://www.gnu.org/licenses/>.
 */
-#ifndef HT_H_
-#define HT_H_
+#ifndef MAPGEN_H_
+#define MAPGEN_H_
 
-#include <stdbool.h>
+#include "common.h"
 
-typedef struct hash_table ht_t;
+#define HEIGHT 100
+#define WIDTH  180
 
-struct kvp {
-    char *key;
-    void *val;
+enum tile_type {
+    WALL,
+    GROUND,
+    UP_STAIR,
+    DOWN_STAIR,
 };
 
-// construct and destructor
-ht_t *ht_create(int size);
-void  ht_destroy(ht_t *h);
+struct map {
+    enum tile_type *map;
+    struct point    entry_point;
 
-// accessors
-void *ht_find(ht_t *h, char *key);
-void  ht_insert(ht_t *h, char *key, void *val);
-void  ht_delete(ht_t *h, char *key);
+    int width;
+    int height;
+};
 
-// queries
-int ht_size(ht_t *h);
+void create_cave(struct map *map);
 
-// iterator
-void       ht_iter_init(ht_t *h);
-struct kvp ht_iter_next(ht_t *h);
-
-#endif // HT_H_
+#endif // MAPGEN_H_

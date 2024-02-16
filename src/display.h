@@ -6,7 +6,7 @@ either version 3 of the License, or (at your option) any later version. urlg is
 distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
 without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE. See the GNU General Public License for more details. You should have
-received a copy of the GNU General Public License along with Foobar. If not, see
+received a copy of the GNU General Public License along with urlg. If not, see
 <https://www.gnu.org/licenses/>.
 */
 #ifndef DISPLAY_H_
@@ -14,9 +14,9 @@ received a copy of the GNU General Public License along with Foobar. If not, see
 
 #include <stdbool.h>
 
-#include "cavegen.h"
 #include "entity.h"
 #include "ht.h"
+#include "mapgen.h"
 
 #define MAIN_PANEL_WIDTH         100
 #define MAIN_PANEL_HEIGHT        41
@@ -44,6 +44,7 @@ enum action {
 display_t *display_init(void);
 void       display_destroy(display_t *disp);
 
+void display_refresh(display_t *disp, struct map *map, ht_t *entities);
 void display_map(display_t *disp, struct map *map, ht_t *entities);
 void display_instructions(display_t *disp);
 void display_message(display_t *disp, char *msg);

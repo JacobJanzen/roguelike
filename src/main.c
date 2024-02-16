@@ -6,37 +6,27 @@ either version 3 of the License, or (at your option) any later version. urlg is
 distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
 without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE. See the GNU General Public License for more details. You should have
-received a copy of the GNU General Public License along with Foobar. If not, see
+received a copy of the GNU General Public License along with urlg. If not, see
 <https://www.gnu.org/licenses/>.
 */
 #include <curses.h>
 #include <getopt.h>
 #include <locale.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "../config.h"
-#include "cavegen.h"
 #include "common.h"
 #include "display.h"
 #include "entity.h"
+#include "game.h"
 #include "ht.h"
+#include "mapgen.h"
 
-bool entity_set_pos(struct entity *e, struct point p, struct map *map)
-{
-    if (e->solid) {
-        if (p.y < 0 || p.x < 0 || p.y >= map->height || p.x >= map->width) {
-            return false;
-        }
-        if (map->map[p.y * map->width + p.x] == WALL) {
-            return false;
-        }
-    }
-
-    e->p = p;
-
-    return true;
-}
+struct cmd_option_results {
+    FILE *save_file;
+};
 
 bool game_update(
     display_t *disp, enum action action, ht_t *entities, struct map *map
@@ -93,8 +83,8 @@ bool game_update(
     default : display_message(disp, "unrecognized command"); break;
     }
 
-    if (entity_set_pos(player, newp, map))
-        entity_set_pos(camera, newp_cam, map);
+    if (entity_set_position(player, newp, map))
+        entity_set_position(camera, newp_cam, map);
 
     return false;
 }
@@ -115,6 +105,7 @@ void print_help(void)
     printf("Usage: urlg [options]\n");
     printf("Options:\n");
     printf("  -h, --help                  Print this message and exit.\n");
+    printf("  -l, --load <file>           File to load a savegame from.\n");
     printf(
         "  -v, --version               Print the version number of urlg and "
         "exit.\n"
@@ -123,23 +114,35 @@ void print_help(void)
     printf("Report bugs to <%s>\n", PACKAGE_BUGREPORT);
 }
 
-void process_cmd_options(int argc, char **argv)
+struct cmd_option_results *process_cmd_options(int argc, char **argv)
 {
-    int           option_index = 0;
-    int           ch;
-    int           version_flag = 0;
-    int           help_flag    = 0;
-    struct option longopts[]   = {
-        {"version", no_argument, &version_flag, 'v'},
-        {"help",    no_argument, &help_flag,    'h'},
+    int   option_index = 0;
+    int   ch;
+    bool  version_flag   = false;
+    bool  help_flag      = false;
+    char *save_file_name = NULL;
+
+    static struct option longopts[] = {
+        {"help",    no_argument,       NULL, 'h'}, // default to help if unrecognized
+        {"version", no_argument,       NULL, 'v'},
+        {"load",    required_argument, NULL, 'l'},
     };
-    while ((ch = getopt_long(argc, argv, ":vh", longopts, &option_index)) != -1
+    while ((ch = getopt_long(argc, argv, "l:vh", longopts, &option_index)) != -1
     ) {
         switch (ch) {
-        case 'v' : version_flag = 1; break;
-        case 'h' : help_flag = 1; break;
+        case 'v' : version_flag = true; break;
+        case 'h' : help_flag = true; break;
+        case 'l' : save_file_name = optarg; break;
         case 0 : break;
-        default : break;
+        default :
+            if (strcmp("load", longopts[option_index].name) == 0) {
+                save_file_name = optarg;
+            } else if (strcmp("version", longopts[option_index].name) == 0) {
+                version_flag = true;
+            } else {
+                help_flag = true;
+            }
+            break;
         }
     }
 
@@ -152,10 +155,23 @@ void process_cmd_options(int argc, char **argv)
         print_help();
         exit(EXIT_SUCCESS);
     }
+
+    struct cmd_option_results *res = malloc(sizeof(struct cmd_option_results));
+    if (save_file_name) {
+        res->save_file = fopen(save_file_name, "r+");
+        if (!res->save_file) {
+            perror("failed to open save file");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    return res;
 }
 
 int main(int argc, char **argv)
 {
+    process_cmd_options(argc, argv);
+
     unsigned int seed = time(NULL);
     srand(seed);
 
@@ -165,53 +181,19 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    // create the map
-    struct map map;
-    create_cave(&map);
-
-    // create the entity map
-    ht_t *entities = ht_create(1);
-
-    // create the camera
-    struct entity camera;
-    camera.disp_ch = "";
-    camera.solid   = false;
-    camera.visible = false;
-    ht_insert(entities, "camera", &camera);
-
-    // create the player
-    struct entity player;
-    player.disp_ch = "@";
-    player.solid   = true;
-    player.visible = true;
-    ht_insert(entities, "player", &player);
-
-    // set starting point
-    struct point cam_p = {
-        .x = map.entry_point.x - MAIN_PANEL_WIDTH / 2 + 1,
-        .y = map.entry_point.y - MAIN_PANEL_HEIGHT / 2 + 1,
-    };
-    entity_set_pos(&player, map.entry_point, &map);
-    entity_set_pos(&camera, cam_p, &map);
+    struct game *game = game_init();
 
     // start displaying things
-    display_map(disp, &map, entities);
-    display_instructions(disp);
-    display_status(disp, &player);
-    display_message(disp, "");
+    display_refresh(game->display, &game->map, game->entities);
 
     bool done = false;
     while (!done) {
         enum action action = display_process_input();
-        done               = game_update(disp, action, entities, &map);
-        display_map(disp, &map, entities);
+        done = game_update(disp, action, game->entities, &game->map);
+        display_map(disp, &game->map, game->entities);
     }
 
-    free(map.map);
-    ht_destroy(entities);
-    display_destroy(disp);
-
-    endwin();
+    game_destroy(game);
 
     return 0;
 }

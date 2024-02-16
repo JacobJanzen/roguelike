@@ -6,7 +6,7 @@ either version 3 of the License, or (at your option) any later version. urlg is
 distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
 without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE. See the GNU General Public License for more details. You should have
-received a copy of the GNU General Public License along with Foobar. If not, see
+received a copy of the GNU General Public License along with urlg. If not, see
 <https://www.gnu.org/licenses/>.
 */
 #include "display.h"
@@ -108,6 +108,8 @@ void display_destroy(display_t *disp)
     delwin(disp->stat);
 
     free(disp);
+
+    endwin();
 }
 
 void display_map(display_t *disp, struct map *map, ht_t *entities)
@@ -219,4 +221,12 @@ enum action display_process_input(void)
     case KEY_F(1) : return ACTION_EXIT;
     default : return ACTION_NONE;
     }
+}
+
+void display_refresh(display_t *disp, struct map *map, ht_t *entities)
+{
+    display_map(disp, map, entities);
+    display_instructions(disp);
+    display_status(disp, ht_find(entities, "player"));
+    display_message(disp, "");
 }

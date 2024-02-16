@@ -6,15 +6,23 @@ either version 3 of the License, or (at your option) any later version. urlg is
 distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
 without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE. See the GNU General Public License for more details. You should have
-received a copy of the GNU General Public License along with urlg. If not, see
+received a copy of the GNU General Public License along with Foobar. If not, see
 <https://www.gnu.org/licenses/>.
 */
-#ifndef COMMON_H_
-#define COMMON_H_
+#include "entity.h"
 
-struct point {
-    int x;
-    int y;
-};
+bool entity_set_position(struct entity *e, struct point p, struct map *map)
+{
+    if (e->solid) {
+        if (p.y < 0 || p.x < 0 || p.y >= map->height || p.x >= map->width) {
+            return false;
+        }
+        if (map->map[p.y * map->width + p.x] == WALL) {
+            return false;
+        }
+    }
 
-#endif // COMMON_H_
+    e->p = p;
+
+    return true;
+}
